@@ -82,11 +82,14 @@ class Order(models.Model):
 
 
 class OrderProduct(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    order_price = models.DecimalField('цена', max_digits=8, decimal_places=2)
-    quantity = models.IntegerField(default=1)
+    order = models.ForeignKey(Order, related_name='order_items', on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, related_name='order_items', on_delete=models.CASCADE, verbose_name='Товар')
+    quantity = models.IntegerField('Количество', default=1)
 
     class Meta:
         unique_together = ['order', 'product']
         verbose_name = 'Элементы заказа'
+        verbose_name_plural = 'Элементы заказов'
+
+    def __str__(self):
+        return f"{self.product.name} - {self.order}"
