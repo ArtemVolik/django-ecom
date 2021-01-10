@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+from phonenumber_field.modelfields import PhoneNumberField
 
 
 class Restaurant(models.Model):
@@ -64,3 +65,27 @@ class RestaurantMenuItem(models.Model):
         unique_together = [
             ['restaurant', 'product']
         ]
+
+
+class Order(models.Model):
+    name = models.CharField('Имя', max_length=30)
+    lastname = models.CharField('Фамилия', max_length=30)
+    phone = PhoneNumberField('Мобильный номер')
+    delivery_address = models.CharField('Адрес доставки', max_length=100)
+
+    def __str__(order):
+        return f'{order.name} {order.lastname} {order.delivery_address}'
+
+    class Meta:
+        verbose_name = 'Заказ'
+        verbose_name_plural = 'Заказы'
+
+
+class OrderProduct(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    quantity = models.IntegerField(default=1)
+
+    class Meta:
+        unique_together = ['order', 'product']
+        verbose_name = 'Элементы заказа'
