@@ -84,6 +84,7 @@ class Order(models.Model):
 class OrderProduct(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    order_price = models.DecimalField('цена', max_digits=8, decimal_places=2)
     quantity = models.IntegerField(default=1)
 
     class Meta:
