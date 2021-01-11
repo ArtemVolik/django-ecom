@@ -1,6 +1,6 @@
 from django.http import JsonResponse
 from django.templatetags.static import static
-import json
+from rest_framework import status
 from .models import Order, Product, OrderProduct
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -27,7 +27,6 @@ def banners_list_api(request):
         'ensure_ascii': False,
         'indent': 4,
     })
-
 
 
 def product_list_api(request):
@@ -62,6 +61,11 @@ def product_list_api(request):
 @api_view(['POST'])
 def register_order(request):
     data = request.data
+    if 'products' not in data \
+        or not isinstance(data['products'], list) \
+        or not bool(data['products']):
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
     order = Order.objects.create(
         name=data['firstname'],
         lastname=data['lastname'],
