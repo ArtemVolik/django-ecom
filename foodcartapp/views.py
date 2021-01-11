@@ -67,10 +67,10 @@ def register_order(request):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
     order = Order.objects.create(
-        name=data['firstname'],
+        firstname=data['firstname'],
         lastname=data['lastname'],
-        phone=data['phonenumber'],
-        delivery_address=data['address']
+        phonenumber=data['phonenumber'],
+        address=data['address']
     )
     order_products = data['products']
     for order_product in order_products:
