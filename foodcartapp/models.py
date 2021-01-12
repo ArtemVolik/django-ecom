@@ -1,6 +1,9 @@
 from django.contrib.auth.models import User
 from django.db import models
 from phonenumber_field.modelfields import PhoneNumberField
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 
 
 class Restaurant(models.Model):
@@ -73,6 +76,12 @@ class Order(models.Model):
     phonenumber = PhoneNumberField('Мобильный номер')
     address = models.CharField('Адрес доставки', max_length=100)
 
+    def total(self):
+        total = self.order_items.annotate(
+            total=ExpressionWrapper(F('quantity') * F('price'),
+            output_field=DecimalField())).aggregate(Sum('total'))
+        return total['total__sum']
+
     def __str__(order):
         return f'{order.firstname} {order.lastname} {order.address}'
 
@@ -81,10 +90,19 @@ class Order(models.Model):
         verbose_name_plural = 'Заказы'
 
 
+class BulkCreateManager(models.Manager):
+    def bulk_create(self, objs, **kwargs):
+        super().bulk_create(objs, **kwargs)
+        for item in objs:
+            post_save.send(item.__class__, instance=item, created=True)
+
+
 class OrderProduct(models.Model):
     order = models.ForeignKey(Order, related_name='order_items', on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, related_name='order_items', on_delete=models.CASCADE, verbose_name='Товар')
+    product = models.ForeignKey(Product, related_name='order_items', on_delete=models.CASCADE)
     quantity = models.IntegerField('Количество', default=1)
+    price = models.DecimalField('цена', max_digits=8, decimal_places=2, default=None, null=True)
+    objects = BulkCreateManager()
 
     class Meta:
         unique_together = ['order', 'product']
@@ -93,3 +111,12 @@ class OrderProduct(models.Model):
 
     def __str__(self):
         return f"{self.product.name} - {self.order}"
+
+
+@receiver(post_save, sender=OrderProduct)
+def set_order_price(sender, instance, created, **kwargs):
+    if created:
+        price = instance.product.price
+        order_product = OrderProduct.objects.get(order=instance.order.id, product=instance.product.id)
+        order_product.price = price
+        order_product.save()

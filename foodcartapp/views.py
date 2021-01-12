@@ -4,6 +4,7 @@ from rest_framework import status
 from .models import Order, Product, OrderProduct
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.serializers import ModelSerializer, ListField
 
 def banners_list_api(request):
     # FIXME move data to db?
@@ -55,29 +56,41 @@ def product_list_api(request):
         'indent': 4,
     })
 
-# {'products': [{'product': 2, 'quantity': 1}], 'firstname': 'Артем', 'lastname': '12335', 'phonenumber': '0981990993', 'address': 'Московский проспект 9'}
+
+# {"products": [{"product": 2, "quantity": 1}], "firstname": "Артем", "lastname": "12335", "phonenumber": "+380981990993", "address": "Московский проспект 9"}
+
+
+class OrderProductSerializer(ModelSerializer):
+    class Meta:
+        model = OrderProduct
+        fields = ['product', 'quantity']
+
+
+class OrderSerializer(ModelSerializer):
+    products = ListField(
+        child=OrderProductSerializer(), allow_empty=False, write_only=True
+    )
+
+    class Meta:
+        model = Order
+        fields = ['id', 'firstname', 'lastname', 'phonenumber', 'address', 'products']
+        read_only_fields = ['id']
 
 
 @api_view(['POST'])
 def register_order(request):
-    data = request.data
-    if 'products' not in data \
-        or not isinstance(data['products'], list) \
-        or not bool(data['products']):
-            return Response(status=status.HTTP_400_BAD_REQUEST)
+    serializer = OrderSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
 
     order = Order.objects.create(
-        firstname=data['firstname'],
-        lastname=data['lastname'],
-        phonenumber=data['phonenumber'],
-        address=data['address']
+        firstname=serializer.validated_data['firstname'],
+        lastname=serializer.validated_data['lastname'],
+        phonenumber=serializer.validated_data['phonenumber'],
+        address=serializer.validated_data['address']
     )
-    order_products = data['products']
-    for order_product in order_products:
-        product = OrderProduct.objects.create(
-            order=order,
-            product=Product.objects.get(id=order_product['product']),
-            quantity=order_product['quantity'])
-        product.save()
-    order.save()
-    return Response(data)
+
+    products_fields = serializer.validated_data['products']
+    products = [OrderProduct(order=order, **fields) for fields in products_fields]
+    OrderProduct.objects.bulk_create(products)
+    serialaizer = OrderSerializer(order)
+    return Response(serialaizer.data)
