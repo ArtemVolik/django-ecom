@@ -18,13 +18,12 @@
       <th>Телефон</th>
       <th>Адрес доставки</th>
     </tr>
-
     {% for item in order_items %}
       <tr>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
-        <td>-</td>
+        <td>{{item.id}}</td>
+        <td>{{item.firstname}} {{item.lastname}}</td>
+        <td>{{item.phonenumber}}</td>
+        <td>{{item.address}}</td>
       </tr>
     {% endfor %}
    </table>
