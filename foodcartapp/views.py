@@ -5,6 +5,8 @@ from .models import Order, Product, OrderProduct
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.serializers import ModelSerializer, ListField
+from django.db import transaction
+
 
 def banners_list_api(request):
     # FIXME move data to db?
@@ -78,6 +80,7 @@ class OrderSerializer(ModelSerializer):
 
 
 @api_view(['POST'])
+@transaction.atomic
 def register_order(request):
     serializer = OrderSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
