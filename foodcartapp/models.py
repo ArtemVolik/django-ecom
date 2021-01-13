@@ -4,7 +4,7 @@ from phonenumber_field.modelfields import PhoneNumberField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
-
+from django.utils.translation import gettext_lazy as _
 
 class Restaurant(models.Model):
     name = models.CharField('название', max_length=50)
@@ -71,11 +71,20 @@ class RestaurantMenuItem(models.Model):
 
 
 class Order(models.Model):
+
     firstname = models.CharField('Имя', max_length=30)
     lastname = models.CharField('Фамилия', max_length=30)
     phonenumber = PhoneNumberField('Мобильный номер')
     address = models.CharField('Адрес доставки', max_length=100)
 
+    class Status(models.TextChoices):
+        new = 'N', _('Новый')
+        in_progress = 'P', _('Выполняется')
+        completed = 'C', _('Выполнен')
+
+    status = models.CharField(max_length=3, choices=Status.choices, default=Status.new)
+
+    @property
     def total(self):
         total = self.order_items.annotate(
             total=ExpressionWrapper(F('quantity') * F('price'),

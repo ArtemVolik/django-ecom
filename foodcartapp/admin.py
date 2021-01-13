@@ -1,7 +1,9 @@
 from django.contrib import admin
 from django.shortcuts import reverse
 from django.utils.html import format_html
-
+from django.conf import settings
+from django.shortcuts import redirect
+from django.utils.http import is_safe_url
 from .models import Product
 from .models import ProductCategory
 from .models import Restaurant
@@ -23,6 +25,17 @@ class OrderProductInline(admin.TabularInline):
 class OrderAdmin(admin.ModelAdmin):
     inlines =[OrderProductInline]
 
+    def response_change(self, request, obj):
+        res = super(OrderAdmin, self).response_change(request, obj)
+        redirect_to = request.GET.get('next')
+        url_is_safe = is_safe_url(
+            url=redirect_to,
+            allowed_hosts=settings.ALLOWED_HOSTS,
+            require_https=request.is_secure(),
+        )
+        if url_is_safe and redirect_to:
+            return redirect(redirect_to)
+        return res
 
 @admin.register(Restaurant)
 class RestaurantAdmin(admin.ModelAdmin):
