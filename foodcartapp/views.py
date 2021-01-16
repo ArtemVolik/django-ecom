@@ -1,6 +1,5 @@
 from django.http import JsonResponse
 from django.templatetags.static import static
-from rest_framework import status
 from .models import Order, Product, OrderProduct
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -57,9 +56,6 @@ def product_list_api(request):
         'ensure_ascii': False,
         'indent': 4,
     })
-
-
-# {"products": [{"product": 2, "quantity": 1}], "firstname": "Артем", "lastname": "12335", "phonenumber": "+380981990993", "address": "Московский проспект 9"}
 
 
 class OrderProductSerializer(ModelSerializer):

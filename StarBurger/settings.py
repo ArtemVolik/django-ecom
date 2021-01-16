@@ -1,17 +1,23 @@
 import os
-
+from dotenv import load_dotenv
 import dj_database_url
+import environ
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+load_dotenv(os.path.join(BASE_DIR, '.env'))
+env = environ.Env()
+environ.Env.read_env()
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'j#jww5g6d96bi#kbfpq%mgblr8^yg8$zmmg+c6dm+bxfa*&c+l'
+SECRET_KEY = os.getenv("SECRET_KEY", "REPLACE_ME")
+
+YANDEX_KEY = env('YANDEX_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DEBUG') in [1, 'True', 'true']
 
 ALLOWED_HOSTS = []
 
@@ -86,6 +92,15 @@ DATABASES = {
     )
 }
 
+CACHES = {
+   'default': {
+      'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+      'LOCATION': 'cache_table',
+      'OPTIONS': {
+                    'MAX_ENTRIES': 3000
+                }
+   }
+}
 AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',

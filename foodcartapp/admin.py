@@ -9,6 +9,7 @@ from .models import ProductCategory
 from .models import Restaurant
 from .models import RestaurantMenuItem
 from .models import OrderProduct, Order
+from django.forms import ModelForm
 
 
 class RestaurantMenuItemInline(admin.TabularInline):
@@ -21,9 +22,21 @@ class OrderProductInline(admin.TabularInline):
     extra = 0
 
 
+class OrderAdminForm(ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(OrderAdminForm, self).__init__(*args, **kwargs)
+
+        if self.instance:
+            choices = self.instance.order_restaurants
+            self.fields['restaurant'].queryset = choices
+
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    inlines =[OrderProductInline]
+    form = OrderAdminForm
+
+    inlines = [OrderProductInline]
+    readonly_fields = ['total']
 
     def response_change(self, request, obj):
         res = super(OrderAdmin, self).response_change(request, obj)
@@ -36,6 +49,7 @@ class OrderAdmin(admin.ModelAdmin):
         if url_is_safe and redirect_to:
             return redirect(redirect_to)
         return res
+
 
 @admin.register(Restaurant)
 class RestaurantAdmin(admin.ModelAdmin):

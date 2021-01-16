@@ -5,11 +5,44 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.db.models import Sum, F, ExpressionWrapper, DecimalField
 from django.utils.translation import gettext_lazy as _
+from django.utils import timezone
+from collections import defaultdict
+import requests
+from StarBurger import settings
+from django.core.cache import cache
+from hashlib import sha1
+
+
+def fetch_coordinates(apikey, place):
+    cache_key = sha1(place.encode()).hexdigest()
+    if cache.get(cache_key):
+        return cache.get(cache_key)
+    base_url = "https://geocode-maps.yandex.ru/1.x"
+    params = {"geocode": place, "apikey": apikey, "format": "json"}
+    response = requests.get(base_url, params=params)
+    response.raise_for_status()
+    places_found = response.json()['response']['GeoObjectCollection']['featureMember']
+    most_relevant = places_found[0]
+    lon, lat = most_relevant['GeoObject']['Point']['pos'].split(" ")
+    cache.set(cache_key, (lon, lat))
+    return lon, lat
+
 
 class Restaurant(models.Model):
     name = models.CharField('название', max_length=50)
     address = models.CharField('адрес', max_length=100, blank=True)
     contact_phone = models.CharField('контактный телефон', max_length=50, blank=True)
+    lon = models.FloatField('Долгота', null=True, blank=True)
+    lat = models.FloatField('Широта', null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        try:
+            lon, lat = fetch_coordinates(settings.YANDEX_KEY, self.address)
+            self.lon = lon
+            self.lat = lat
+        except (ConnectionError, TypeError):
+            super(Restaurant, self).save(*args, **kwargs)
+        super(Restaurant, self).save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -70,26 +103,99 @@ class RestaurantMenuItem(models.Model):
         ]
 
 
-class Order(models.Model):
+class OrderQuerySet(models.QuerySet):
 
+    def fetch_orders_with_total_and_restaurants(self):
+
+        orders_products = OrderProduct.objects.values_list('order', 'product')
+        orders_with_products = defaultdict(list)
+        for set in orders_products:
+            orders_with_products[set[0]].append(set[1])
+
+        orders = self.all()
+        orders_total_price = OrderProduct.objects.values('order').\
+            annotate(order_total=ExpressionWrapper(Sum(F('quantity') * F('price')),
+                     output_field=DecimalField()))
+        orders_total_price = orders_total_price.values_list('order_id', 'order_total')
+        orders_total_price = dict(orders_total_price)
+
+        restaurant_menu_items = RestaurantMenuItem.objects.all()
+        restaurant_menu_items = restaurant_menu_items \
+                .filter(availability=True).values_list('restaurant__name', 'product', 'restaurant__lon', 'restaurant__lat')
+        restaurants_with_products = defaultdict(list)
+        for set in restaurant_menu_items:
+            restaurants_with_products[(set[0], set[3], set[2])].append(set[1])
+
+        for order in orders:
+            restaurants = []
+            products_set = orders_with_products[order.id]
+            for restaurant, products in restaurants_with_products.items():
+                if {*products_set}.issubset({*products}):
+                    restaurants.append({restaurant[0]: (restaurant[1], restaurant[2])})
+            order.restaurants = restaurants
+
+            order.total_price = orders_total_price[order.id]
+        return orders
+
+
+class Order(models.Model):
     firstname = models.CharField('Имя', max_length=30)
     lastname = models.CharField('Фамилия', max_length=30)
     phonenumber = PhoneNumberField('Мобильный номер')
     address = models.CharField('Адрес доставки', max_length=100)
 
     class Status(models.TextChoices):
-        new = 'N', _('Новый')
-        in_progress = 'P', _('Выполняется')
-        completed = 'C', _('Выполнен')
+        new = 'new', _('Новый')
+        in_progress = 'in_progress', _('Выполняется')
+        completed = 'completed', _('Выполнен')
 
-    status = models.CharField(max_length=3, choices=Status.choices, default=Status.new)
+    class Payment(models.TextChoices):
+        online = 'online', _('Картой курьеру')
+        cash = 'cash', _('Наличными курьеру')
+        prepayment = 'prepayment', _('Оплачено')
+
+    status = models.CharField(max_length=11, choices=Status.choices, default=Status.new)
+    payment = models.CharField(max_length=10, choices=Payment.choices, default=Payment.cash)
+    registrated_at = models.DateTimeField(verbose_name='Оформлен', default=timezone.now)
+    called_at = models.DateTimeField(verbose_name='Принят', blank=True, null=True)
+    delivered_at = models.DateTimeField(verbose_name='Доставлен', blank=True, null=True)
+    comment = models.TextField('Комментарий', blank=True, null=True)
+    restaurant = models.ForeignKey(Restaurant, blank=True, null=True, on_delete=models.SET_NULL)
+    lon = models.FloatField('Долгота', null=True, blank=True)
+    lat = models.FloatField('Широта', null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        try:
+            lon, lat = fetch_coordinates(settings.YANDEX_KEY, self.address)
+            self.lon = lon
+            self.lat = lat
+        except (ConnectionError, TypeError):
+            super(Order, self).save(*args, **kwargs)
+        super(Order, self).save(*args, **kwargs)
+    objects = OrderQuerySet.as_manager()
 
     @property
     def total(self):
         total = self.order_items.annotate(
             total=ExpressionWrapper(F('quantity') * F('price'),
-            output_field=DecimalField())).aggregate(Sum('total'))
+                                    output_field=DecimalField())).aggregate(Sum('total'))
         return total['total__sum']
+
+    total.fget.short_description = "Общая сумма заказа"
+
+    @property
+    def order_restaurants(self):
+        products_set = self.order_items.values_list('product', flat=True)
+        restaurants_and_products = RestaurantMenuItem.objects\
+            .filter(availability=True).values_list('restaurant', 'product')
+        restaurants_with_products = defaultdict(list)
+        restaurants = []
+        for set in restaurants_and_products:
+            restaurants_with_products[set[0]].append(set[1])
+        for restaurant, products in restaurants_with_products.items():
+            if {*products_set}.issubset({*products}):
+                restaurants.append(restaurant)
+        return Restaurant.objects.filter(id__in=restaurants)
 
     def __str__(order):
         return f'{order.firstname} {order.lastname} {order.address}'
