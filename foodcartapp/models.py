@@ -154,8 +154,8 @@ class Order(models.Model):
         cash = 'cash', _('Наличными курьеру')
         prepayment = 'prepayment', _('Оплачено')
 
-    status = models.CharField(max_length=11, choices=Status.choices, default=Status.new)
-    payment = models.CharField(max_length=10, choices=Payment.choices, default=Payment.cash)
+    status = models.CharField('Статус заказа', max_length=11, choices=Status.choices, default=Status.new)
+    payment = models.CharField('Способ оплаты', max_length=10, choices=Payment.choices, default=Payment.cash)
     registrated_at = models.DateTimeField(verbose_name='Оформлен', default=timezone.now)
     called_at = models.DateTimeField(verbose_name='Принят', blank=True, null=True)
     delivered_at = models.DateTimeField(verbose_name='Доставлен', blank=True, null=True)
@@ -213,10 +213,13 @@ class BulkCreateManager(models.Manager):
 
 
 class OrderProduct(models.Model):
-    order = models.ForeignKey(Order, related_name='order_items', on_delete=models.CASCADE)
-    product = models.ForeignKey(Product, related_name='order_items', on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, related_name='order_items',
+                              on_delete=models.CASCADE, verbose_name="Заказ")
+    product = models.ForeignKey(Product, related_name='order_items',
+                                on_delete=models.CASCADE, verbose_name="Товары заказа")
     quantity = models.IntegerField('Количество', default=1)
-    price = models.DecimalField('цена', max_digits=8, decimal_places=2, default=None, null=True)
+    price = models.DecimalField('цена', max_digits=8,
+                                decimal_places=2, default=None, null=True)
     objects = BulkCreateManager()
 
     class Meta:
