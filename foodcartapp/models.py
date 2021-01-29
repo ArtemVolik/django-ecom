@@ -159,7 +159,7 @@ class Order(models.Model):
     registrated_at = models.DateTimeField(verbose_name='Оформлен', default=timezone.now)
     called_at = models.DateTimeField(verbose_name='Принят', blank=True, null=True)
     delivered_at = models.DateTimeField(verbose_name='Доставлен', blank=True, null=True)
-    comment = models.TextField('Комментарий', blank=True, null=True)
+    comment = models.TextField('Комментарий', default='')
     restaurant = models.ForeignKey(Restaurant, blank=True, null=True, on_delete=models.SET_NULL)
     lon = models.FloatField('Долгота', null=True, blank=True)
     lat = models.FloatField('Широта', null=True, blank=True)
