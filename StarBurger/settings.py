@@ -18,7 +18,6 @@ YANDEX_KEY = env.str('YANDEX_KEY')
 DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
-print(ALLOWED_HOSTS)
 
 INSTALLED_APPS = [
     'foodcartapp.apps.FoodcartappConfig',
