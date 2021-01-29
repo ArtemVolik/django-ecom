@@ -226,7 +226,7 @@ class OrderProduct(models.Model):
                                 on_delete=models.CASCADE, verbose_name="Товары заказа")
     quantity = models.IntegerField('Количество', default=1)
     price = models.DecimalField('цена', max_digits=8,
-                                decimal_places=2, default=None, null=True)
+                                decimal_places=2)
     objects = BulkCreateManager()
 
     class Meta:
