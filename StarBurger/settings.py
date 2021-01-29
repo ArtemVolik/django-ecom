@@ -1,23 +1,21 @@
 import os
-from dotenv import load_dotenv
 import dj_database_url
-import environ
+from environs import Env
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-load_dotenv(os.path.join(BASE_DIR, '.env'))
-env = environ.Env()
-environ.Env.read_env()
+env = Env()
+env.read_env()
 
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv("SECRET_KEY", "REPLACE_ME")
+SECRET_KEY = env.str("SECRET_KEY")
 
-YANDEX_KEY = env('YANDEX_KEY')
+YANDEX_KEY = env.str('YANDEX_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG') in [1, 'True', 'true']
+DEBUG = env.bool('DEBUG', default=False)
 
 ALLOWED_HOSTS = []
 
