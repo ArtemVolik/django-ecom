@@ -11,7 +11,7 @@ import requests
 from StarBurger import settings
 from django.core.cache import cache
 from hashlib import sha1
-
+from django.core.validators import MinValueValidator
 
 def fetch_coordinates(apikey, place):
     cache_key = sha1(place.encode()).hexdigest()
@@ -72,7 +72,9 @@ class Product(models.Model):
     name = models.CharField('название', max_length=50)
     category = models.ForeignKey(ProductCategory, null=True, blank=True, on_delete=models.SET_NULL,
                                  verbose_name='категория', related_name='products')
-    price = models.DecimalField('цена', max_digits=8, decimal_places=2)
+    price = models.DecimalField(
+        'цена', max_digits=8, decimal_places=2,
+        validators=[MinValueValidator(0, message="Предлагаешь доплатить?")])
     image = models.ImageField('картинка')
     special_status = models.BooleanField('спец.предложение', default=False, db_index=True)
     description = models.TextField('описание', max_length=200, blank=True)
@@ -226,7 +228,7 @@ class OrderProduct(models.Model):
                                 on_delete=models.CASCADE, verbose_name="Товары заказа")
     quantity = models.IntegerField('Количество', default=1)
     price = models.DecimalField('цена', max_digits=8,
-                                decimal_places=2)
+                                decimal_places=2, validators=[MinValueValidator(0)])
     objects = BulkCreateManager()
 
     class Meta:
