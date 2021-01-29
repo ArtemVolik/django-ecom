@@ -121,7 +121,10 @@ class OrderQuerySet(models.QuerySet):
 
         restaurant_menu_items = RestaurantMenuItem.objects.all()
         restaurant_menu_items = restaurant_menu_items \
-                .filter(availability=True).values_list('restaurant__name', 'product', 'restaurant__lon', 'restaurant__lat')
+                .filter(availability=True).values_list('restaurant__name',
+                                                       'product',
+                                                       'restaurant__lon',
+                                                       'restaurant__lat')
         restaurants_with_products = defaultdict(list)
         for set in restaurant_menu_items:
             restaurants_with_products[(set[0], set[3], set[2])].append(set[1])
@@ -154,8 +157,12 @@ class Order(models.Model):
         cash = 'cash', _('Наличными курьеру')
         prepayment = 'prepayment', _('Оплачено')
 
-    status = models.CharField('Статус заказа', max_length=11, choices=Status.choices, default=Status.new)
-    payment = models.CharField('Способ оплаты', max_length=10, choices=Payment.choices, default=Payment.cash)
+    status = models.CharField(
+        'Статус заказа', max_length=11,
+        choices=Status.choices, default=Status.new, db_index=True)
+    payment = models.CharField(
+        'Способ оплаты', max_length=10,
+        choices=Payment.choices, default=Payment.cash, db_index=True)
     registrated_at = models.DateTimeField(verbose_name='Оформлен', default=timezone.now)
     called_at = models.DateTimeField(verbose_name='Принят', blank=True, null=True)
     delivered_at = models.DateTimeField(verbose_name='Доставлен', blank=True, null=True)
